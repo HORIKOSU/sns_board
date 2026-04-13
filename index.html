@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AndZen — SNS フォロワーボード</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #F2F1ED;
+  --surface: #FFFFFF;
+  --surface2: #ECEAE5;
+  --surface3: #E4E2DC;
+  --border: rgba(0,0,0,0.07);
+  --border-md: rgba(0,0,0,0.13);
+  --text: #18170F;
+  --text2: #65635D;
+  --text3: #9E9C96;
+  --green: #166534;
+  --green-bg: #DCFCE7;
+  --red: #991B1B;
+  --red-bg: #FEE2E2;
+  --blue: #1D4ED8;
+  --blue-bg: #DBEAFE;
+  --amber: #92400E;
+  --amber-bg: #FEF3C7;
+  --r: 10px;
+  --rs: 6px;
+  --sidebar: 232px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'IBM Plex Sans JP',sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;}
+
+/* ── Shell ── */
+.shell{display:flex;height:100vh;overflow:hidden;}
+
+/* ── Sidebar ── */
+.sidebar{
+  width:var(--sidebar);flex-shrink:0;
+  background:var(--surface);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+}
+.sidebar-head{
+  padding:18px 16px 14px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.brand{font-size:14px;font-weight:600;letter-spacing:-.2px;}
+.brand-sub{font-size:10px;color:var(--text3);font-family:'IBM Plex Mono',monospace;margin-top:1px;}
+
+.nav-section{padding:10px 8px 4px;flex-shrink:0;}
+.nav-label{font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;padding:0 8px;margin-bottom:4px;}
+
+.client-list{flex:1;overflow-y:auto;padding:0 8px 8px;}
+.client-list::-webkit-scrollbar{width:3px;}
+.client-list::-webkit-scrollbar-thumb{background:var(--border-md);border-radius:2px;}
+
+.c-btn{
+  display:flex;align-items:center;gap:9px;
+  width:100%;padding:7px 9px;
+  border:none;border-radius:var(--rs);
+  background:transparent;color:var(--text2);
+  font-size:12px;font-family:'IBM Plex Sans JP',sans-serif;
+  cursor:pointer;text-align:left;
+  transition:background .12s,color .12s;
+  position:relative;
+}
+.c-btn:hover{background:var(--surface2);color:var(--text);}
+.c-btn.active{background:var(--text);color:#fff;}
+.c-btn.active .c-count{color:rgba(255,255,255,.5);}
+.c-av{
+  width:26px;height:26px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:600;flex-shrink:0;
+}
+.c-meta{flex:1;min-width:0;}
+.c-name{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.c-count{font-size:10px;color:var(--text3);font-family:'IBM Plex Mono',monospace;}
+
+.overview-btn{
+  display:flex;align-items:center;gap:9px;
+  width:100%;padding:7px 9px;margin-bottom:2px;
+  border:none;border-radius:var(--rs);
+  background:transparent;color:var(--text2);
+  font-size:12px;font-family:'IBM Plex Sans JP',sans-serif;
+  cursor:pointer;text-align:left;
+  transition:background .12s;
+}
+.overview-btn:hover{background:var(--surface2);}
+.overview-btn.active{background:var(--text);color:#fff;}
+.ov-icon{width:26px;height:26px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.overview-btn.active .ov-icon{background:rgba(255,255,255,.15);}
+
+.sidebar-footer{
+  padding:10px 8px;
+  border-top:1px solid var(--border);
+  flex-shrink:0;
+}
+.add-name-input{width:100%;font-size:12px;margin-bottom:6px;}
+.btn-add-client{
+  width:100%;padding:6px 8px;font-size:11px;font-weight:500;
+  border:1px dashed var(--border-md);border-radius:var(--rs);
+  background:transparent;color:var(--text2);
+  cursor:pointer;font-family:'IBM Plex Sans JP',sans-serif;
+  transition:all .12s;
+}
+.btn-add-client:hover{background:var(--surface2);border-style:solid;color:var(--text);}
+
+/* ── Main ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+
+.topbar{
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:13px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+}
+.tb-left{display:flex;align-items:center;gap:10px;}
+.page-title{font-size:15px;font-weight:600;letter-spacing:-.3px;cursor:default;}
+.page-title.editable{cursor:text;border-bottom:1.5px dashed var(--border-md);padding-bottom:1px;}
+.page-title.editable:hover{border-bottom-color:var(--blue);}
+.rename-input{
+  font-size:15px;font-weight:600;letter-spacing:-.3px;
+  border:none;border-bottom:1.5px solid var(--blue);
+  background:transparent;color:var(--text);
+  outline:none;padding:0 0 1px;
+  font-family:'IBM Plex Sans JP',sans-serif;
+  min-width:80px;width:auto;
+}
+.rename-hint{font-size:10px;color:var(--text3);margin-left:6px;}
+.badge{
+  font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;
+  letter-spacing:.04em;text-transform:uppercase;
+}
+.badge-mode{background:var(--surface2);color:var(--text2);}
+.badge-api{background:var(--blue-bg);color:var(--blue);}
+.tb-right{display:flex;align-items:center;gap:8px;}
+.updated{font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace;}
+.btn-icon{
+  padding:6px 12px;font-size:11px;font-weight:500;
+  border:1px solid var(--border-md);border-radius:var(--rs);
+  background:var(--surface2);color:var(--text);
+  cursor:pointer;font-family:'IBM Plex Sans JP',sans-serif;
+  transition:background .12s;
+}
+.btn-icon:hover{background:var(--surface3);}
+.btn-icon.on{background:var(--text);color:#fff;border-color:var(--text);}
+
+.scroll-area{flex:1;overflow-y:auto;padding:22px 24px;}
+.scroll-area::-webkit-scrollbar{width:4px;}
+.scroll-area::-webkit-scrollbar-thumb{background:var(--border-md);border-radius:2px;}
+
+/* ── API Panel ── */
+.api-panel{
+  background:var(--blue-bg);
+  border:1px solid rgba(29,78,216,.12);
+  border-radius:var(--r);
+  padding:14px 18px;
+  margin-bottom:18px;
+}
+.api-title{font-size:11px;font-weight:600;color:var(--blue);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.api-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.api-field label{font-size:10px;color:var(--text2);display:block;margin-bottom:4px;font-weight:500;}
+.api-field input{width:100%;font-family:'IBM Plex Mono',monospace;font-size:11px;background:#fff;}
+.api-note{font-size:10px;color:rgba(29,78,216,.6);margin-top:8px;line-height:1.7;}
+.api-save{
+  margin-top:10px;padding:6px 16px;font-size:11px;font-weight:500;
+  border:1px solid rgba(29,78,216,.25);border-radius:var(--rs);
+  background:#fff;color:var(--blue);
+  cursor:pointer;font-family:'IBM Plex Sans JP',sans-serif;
+  transition:background .12s;
+}
+.api-save:hover{background:var(--blue-bg);}
+
+/* ── Metrics ── */
+.metric-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;}
+.metric-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px 16px;
+}
+.m-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;}
+.m-val{font-size:22px;font-weight:600;letter-spacing:-.5px;font-family:'IBM Plex Mono',monospace;line-height:1;}
+.m-sub{font-size:11px;margin-top:4px;}
+.pos{color:var(--green);}.neg{color:var(--red);}.neu{color:var(--text3);}
+
+/* ── Account grid ── */
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.sec-title{font-size:12px;font-weight:600;color:var(--text);}
+.acc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-bottom:18px;}
+.acc-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:12px 14px;
+  transition:border-color .12s;cursor:default;
+}
+.acc-card:hover{border-color:var(--border-md);}
+.pf-row{display:flex;align-items:center;gap:7px;margin-bottom:8px;}
+.pf-icon{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.pf-tt{background:#000;}.pf-ig{background:linear-gradient(135deg,#f9ce34,#ee2a7b,#6228d7);}
+.pf-n{font-size:10px;font-weight:600;color:var(--text2);}
+.pf-h{font-size:10px;color:var(--text3);font-family:'IBM Plex Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;}
+.pf-h-edit{cursor:text;border-bottom:1px dashed transparent;transition:border-color .12s;}
+.pf-h-edit:hover{border-bottom-color:var(--text3);}
+.handle-input{
+  font-size:10px;color:var(--text);font-family:'IBM Plex Mono',monospace;
+  border:none;border-bottom:1px solid var(--blue);
+  background:transparent;outline:none;padding:0;
+  width:100px;
+}
+.acc-num{font-size:21px;font-weight:600;letter-spacing:-.4px;font-family:'IBM Plex Mono',monospace;}
+.acc-ch{font-size:11px;margin-top:2px;}
+.acc-card{position:relative;}
+.btn-del{
+  position:absolute;top:8px;right:8px;
+  width:22px;height:22px;border-radius:50%;
+  border:1px solid var(--border-md);
+  background:var(--surface2);color:var(--text3);
+  font-size:13px;line-height:1;
+  cursor:pointer;display:none;
+  align-items:center;justify-content:center;
+  transition:background .12s,color .12s,border-color .12s;
+}
+.acc-card:hover .btn-del{display:flex;}
+.btn-del:hover{background:var(--red-bg);color:var(--red);border-color:rgba(153,27,27,.2);}
+
+/* ── Chart ── */
+.chart-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:16px 18px;margin-bottom:18px;
+}
+.chart-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.legend{display:flex;gap:12px;flex-wrap:wrap;}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);font-family:'IBM Plex Mono',monospace;}
+.leg-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+
+/* ── Input panel ── */
+.input-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:16px 18px;margin-bottom:18px;
+}
+.inp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-bottom:12px;}
+.inp-group label{font-size:10px;color:var(--text2);font-weight:500;display:flex;align-items:center;gap:5px;margin-bottom:4px;}
+.inp-group input{width:100%;font-family:'IBM Plex Mono',monospace;font-size:12px;}
+.action-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.btn-primary{
+  padding:7px 18px;font-size:12px;font-weight:600;
+  border:none;border-radius:var(--rs);
+  background:var(--text);color:#fff;
+  cursor:pointer;font-family:'IBM Plex Sans JP',sans-serif;
+  transition:opacity .12s;
+}
+.btn-primary:hover{opacity:.82;}
+.api-hint{font-size:10px;color:var(--text3);background:var(--surface2);padding:4px 10px;border-radius:var(--rs);font-family:'IBM Plex Mono',monospace;}
+.add-acc-row{display:flex;gap:7px;flex-wrap:wrap;}
+.add-acc-row select{flex:0 0 110px;}
+.add-acc-row input{flex:1;min-width:120px;}
+.btn-sm{
+  padding:6px 12px;font-size:11px;font-weight:500;white-space:nowrap;
+  border:1px solid var(--border-md);border-radius:var(--rs);
+  background:var(--surface2);color:var(--text);
+  cursor:pointer;font-family:'IBM Plex Sans JP',sans-serif;
+  transition:background .12s;
+}
+.btn-sm:hover{background:var(--surface3);}
+
+/* ── Form elements ── */
+input[type=text],input[type=number]{
+  border:1px solid var(--border-md);border-radius:var(--rs);
+  padding:6px 9px;font-size:12px;
+  font-family:'IBM Plex Sans JP',sans-serif;
+  background:var(--surface);color:var(--text);
+  outline:none;transition:border-color .12s;
+}
+input[type=text]:focus,input[type=number]:focus{border-color:var(--blue);}
+select{
+  border:1px solid var(--border-md);border-radius:var(--rs);
+  padding:6px 9px;font-size:12px;
+  font-family:'IBM Plex Sans JP',sans-serif;
+  background:var(--surface);color:var(--text);outline:none;
+}
+
+/* ── Overview ── */
+.ov-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;}
+.ov-metric{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px 16px;
+}
+.ov-client-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:18px;}
+.ov-client-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px 16px;
+  cursor:pointer;transition:border-color .12s,box-shadow .12s;
+}
+.ov-client-card:hover{border-color:var(--border-md);box-shadow:0 2px 8px rgba(0,0,0,.05);}
+.ov-c-head{display:flex;align-items:center;gap:9px;margin-bottom:10px;}
+.ov-c-name{font-size:13px;font-weight:600;}
+.ov-c-total{font-size:18px;font-weight:600;font-family:'IBM Plex Mono',monospace;margin-bottom:3px;}
+.ov-c-change{font-size:11px;}
+.ov-pf-pills{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+.ov-pill{font-size:10px;padding:2px 8px;border-radius:20px;font-family:'IBM Plex Mono',monospace;}
+.pill-tt{background:#F0F0F0;color:#333;}
+.pill-ig{background:#FCE7F3;color:#9D174D;}
+
+/* ── Empty ── */
+.empty{text-align:center;padding:48px 24px;color:var(--text3);}
+.empty-icon{font-size:28px;margin-bottom:8px;}
+
+/* ── Avatar colors ── */
+.av0{background:#DBEAFE;color:#1D4ED8;}
+.av1{background:#DCFCE7;color:#166534;}
+.av2{background:#FEF3C7;color:#92400E;}
+.av3{background:#FCE7F3;color:#9D174D;}
+.av4{background:#EDE9FE;color:#6D28D9;}
+.av5{background:#FFEDD5;color:#9A3412;}
+.av6{background:#F1F5F9;color:#334155;}
+.av7{background:#FDF2F8;color:#701A75;}
+.av8{background:#F0FDF4;color:#14532D;}
+.av9{background:#FFF7ED;color:#7C2D12;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ───── SIDEBAR ───── -->
+<nav class="sidebar">
+  <div class="sidebar-head">
+    <div class="brand">AndZen</div>
+    <div class="brand-sub">SNS Dashboard v2</div>
+  </div>
+
+  <div class="nav-section">
+    <button class="overview-btn active" id="btn-overview" onclick="showOverview()">
+      <div class="ov-icon">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><rect x="0" y="0" width="6" height="6" rx="1"/><rect x="9" y="0" width="7" height="6" rx="1"/><rect x="0" y="9" width="7" height="7" rx="1"/><rect x="10" y="9" width="6" height="7" rx="1"/></svg>
+      </div>
+      <span>全社オーバービュー</span>
+    </button>
+    <div class="nav-label" style="margin-top:8px;">クライアント</div>
+  </div>
+
+  <div class="client-list" id="client-list"></div>
+
+  <div class="sidebar-footer">
+    <input type="text" class="add-name-input" id="new-client-name" placeholder="クライアント名..." />
+    <button class="btn-add-client" onclick="addClient()">+ クライアント追加</button>
+  </div>
+</nav>
+
+<!-- ───── MAIN ───── -->
+<div class="main">
+  <div class="topbar">
+    <div class="tb-left">
+      <div class="page-title" id="page-title" onclick="startRename()">全社オーバービュー</div>
+      <div class="badge badge-mode" id="mode-badge">手動モード</div>
+    </div>
+    <div class="tb-right">
+      <div class="updated" id="updated-at">未更新</div>
+      <button class="btn-icon" id="btn-api-toggle" onclick="toggleApi()">API設定</button>
+    </div>
+  </div>
+
+  <div class="scroll-area" id="scroll-area"></div>
+</div>
+
+</div><!-- .shell -->
+
+<script>
+/* ─── Constants ─── */
+const NOW_M = new Date().getMonth();
+const MONTH_LABELS = Array.from({length:6},(_,i)=>{
+  const m = (NOW_M-5+i+12)%12;
+  return ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'][m];
+});
+const CHART_COLORS = ['#1D4ED8','#C13584','#059669','#D97706','#7C3AED','#DC2626','#0891B2','#BE185D','#65A30D','#9333EA'];
+const AV = ['av0','av1','av2','av3','av4','av5','av6','av7','av8','av9'];
+
+/* ─── State ─── */
+let view = 'overview'; // 'overview' | client id
+let showApi = false;
+let chartInst = null;
+let nextCId = 20, nextAId = 200;
+
+/* ─── Helpers ─── */
+function mkHist(base, trend=1.0){
+  let v = Math.round(base * 0.83);
+  const h=[];
+  for(let i=0;i<5;i++){h.push(v);v=Math.round(v*(1+trend*.028+(Math.random()-.42)*.014));}
+  h.push(base); return h;
+}
+function fmt(n){return n==null?'—':n.toLocaleString('ja-JP');}
+function fmtK(n){if(n==null)return'—';return n>=10000?Math.round(n/1000)+'K':n.toLocaleString('ja-JP');}
+function ch(curr,prev){
+  if(curr==null||prev==null)return{txt:'—',cls:'neu'};
+  const d=curr-prev;
+  return{txt:(d>0?'+':'')+fmt(d),cls:d>0?'pos':d<0?'neg':'neu'};
+}
+function initials(s){return s.slice(0,2).toUpperCase();}
+function pfIcon(p){
+  const svg_tt=`<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.77-.39 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 00-.79-.05 6.34 6.34 0 000 12.68 6.34 6.34 0 006.33-6.34V8.91a8.23 8.23 0 004.81 1.54V7.01a4.85 4.85 0 01-1.04-.32z"/></svg>`;
+  const svg_ig=`<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>`;
+  if(p==='tiktok') return `<div class="pf-icon pf-tt">${svg_tt}</div>`;
+  return `<div class="pf-icon pf-ig">${svg_ig}</div>`;
+}
+
+/* ─── Data ─── */
+let clients = [
+  {id:1,name:'クライアントA',accounts:[
+    {id:10,platform:'tiktok',handle:'@clientA_tiktok',followers:124500,prev:121000,history:mkHist(124500,1.1)},
+    {id:11,platform:'instagram',handle:'@clientA_ig',followers:87200,prev:85100,history:mkHist(87200,0.9)},
+  ]},
+  {id:2,name:'クライアントB',accounts:[
+    {id:20,platform:'tiktok',handle:'@clientB_tiktok',followers:45000,prev:43800,history:mkHist(45000,0.8)},
+    {id:21,platform:'instagram',handle:'@clientB_ig',followers:32100,prev:31500,history:mkHist(32100,0.65)},
+  ]},
+  {id:3,name:'クライアントC',accounts:[
+    {id:30,platform:'instagram',handle:'@clientC_ig',followers:201000,prev:195000,history:mkHist(201000,1.3)},
+    {id:31,platform:'tiktok',handle:'@clientC_tiktok',followers:78400,prev:74200,history:mkHist(78400,1.2)},
+  ]},
+  {id:4,name:'クライアントD',accounts:[
+    {id:40,platform:'tiktok',handle:'@clientD_tiktok',followers:310000,prev:298000,history:mkHist(310000,1.5)},
+    {id:41,platform:'instagram',handle:'@clientD_ig',followers:145000,prev:140500,history:mkHist(145000,1.0)},
+  ]},
+  {id:5,name:'クライアントE',accounts:[
+    {id:50,platform:'instagram',handle:'@clientE_ig',followers:56700,prev:55200,history:mkHist(56700,0.7)},
+  ]},
+  {id:6,name:'クライアントF',accounts:[
+    {id:60,platform:'tiktok',handle:'@clientF_tiktok',followers:92300,prev:88000,history:mkHist(92300,1.1)},
+    {id:61,platform:'instagram',handle:'@clientF_ig',followers:41500,prev:40000,history:mkHist(41500,0.9)},
+  ]},
+];
+
+/* ─── Sidebar ─── */
+function renderSidebar(){
+  const list = document.getElementById('client-list');
+  list.innerHTML = clients.map((c,i)=>{
+    const total = c.accounts.reduce((s,a)=>s+(a.followers||0),0);
+    const isActive = view===c.id;
+    return `<button class="c-btn${isActive?' active':''}" onclick="showClient(${c.id})">
+      <div class="c-av ${AV[i%AV.length]}">${initials(c.name)}</div>
+      <div class="c-meta">
+        <div class="c-name">${c.name}</div>
+        <div class="c-count">${fmtK(total)}</div>
+      </div>
+    </button>`;
+  }).join('');
+  document.getElementById('btn-overview').className='overview-btn'+(view==='overview'?' active':'');
+}
+
+/* ─── View switchers ─── */
+function showOverview(){view='overview';renderSidebar();renderMain();}
+function showClient(id){view=id;renderSidebar();renderMain();}
+
+function toggleApi(){
+  showApi=!showApi;
+  document.getElementById('btn-api-toggle').className='btn-icon'+(showApi?' on':'');
+  renderMain();
+}
+
+/* ─── Main render router ─── */
+function renderMain(){
+  const isClient = view !== 'overview';
+  const title = isClient ? (clients.find(c=>c.id===view)||{name:'—'}).name : '全社オーバービュー';
+  const el = document.getElementById('page-title');
+  el.textContent = title;
+  el.className = 'page-title' + (isClient ? ' editable' : '');
+  el.title = isClient ? 'クリックして名前を編集' : '';
+  if(view==='overview') renderOverview();
+  else renderClient(clients.find(c=>c.id===view));
+}
+
+/* ─── API panel snippet ─── */
+function apiPanelHtml(){
+  if(!showApi)return'';
+  return `<div class="api-panel">
+    <div class="api-title">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M21 12h-2M5 12H3M18.66 18.66l-1.41-1.41M6.75 6.75L5.34 5.34"/></svg>
+      API自動取得設定（準備中）
+    </div>
+    <div class="api-grid">
+      <div class="api-field"><label>Instagram Graph API Token</label><input type="text" placeholder="EAAxxxxx..." /></div>
+      <div class="api-field"><label>Instagram Business Account ID</label><input type="text" placeholder="1234567890" /></div>
+      <div class="api-field"><label>TikTok Business API Key</label><input type="text" placeholder="tiktok-key..." /></div>
+      <div class="api-field"><label>TikTok Advertiser ID</label><input type="text" placeholder="7xxxxxxx" /></div>
+    </div>
+    <div class="api-note">設定後は「更新する」ボタンでAPIから自動取得します。Instagram Graph API・TikTok Business API に対応予定。キーはブラウザのローカルストレージに保存されます。</div>
+    <button class="api-save">設定を保存（準備中）</button>
+  </div>`;
+}
+
+/* ─── Overview ─── */
+function renderOverview(){
+  const allAcc = clients.flatMap(c=>c.accounts);
+  const total = allAcc.reduce((s,a)=>s+(a.followers||0),0);
+  const prevTotal = allAcc.reduce((s,a)=>s+(a.prev||0),0);
+  const totalCh = ch(total,prevTotal);
+  const growth = prevTotal>0?((total-prevTotal)/prevTotal*100).toFixed(2):null;
+  const ttTotal = allAcc.filter(a=>a.platform==='tiktok').reduce((s,a)=>s+(a.followers||0),0);
+  const igTotal = allAcc.filter(a=>a.platform==='instagram').reduce((s,a)=>s+(a.followers||0),0);
+
+  document.getElementById('scroll-area').innerHTML = `
+    ${apiPanelHtml()}
+    <div class="ov-strip">
+      <div class="ov-metric">
+        <div class="m-label">全社総フォロワー</div>
+        <div class="m-val">${fmt(total)}</div>
+        <div class="m-sub ${totalCh.cls}">${totalCh.txt} 前月比</div>
+      </div>
+      <div class="ov-metric">
+        <div class="m-label">TikTok 合計</div>
+        <div class="m-val">${fmt(ttTotal)}</div>
+        <div class="m-sub neu">全社合算</div>
+      </div>
+      <div class="ov-metric">
+        <div class="m-label">Instagram 合計</div>
+        <div class="m-val">${fmt(igTotal)}</div>
+        <div class="m-sub neu">全社合算</div>
+      </div>
+    </div>
+
+    <div class="sec-head"><div class="sec-title">クライアント一覧</div></div>
+    <div class="ov-client-grid">
+      ${clients.map((c,i)=>{
+        const t=c.accounts.reduce((s,a)=>s+(a.followers||0),0);
+        const p=c.accounts.reduce((s,a)=>s+(a.prev||0),0);
+        const cc=ch(t,p);
+        const ttC=c.accounts.filter(a=>a.platform==='tiktok').reduce((s,a)=>s+(a.followers||0),0);
+        const igC=c.accounts.filter(a=>a.platform==='instagram').reduce((s,a)=>s+(a.followers||0),0);
+        return `<div class="ov-client-card" onclick="showClient(${c.id})">
+          <div class="ov-c-head">
+            <div class="c-av ${AV[i%AV.length]}">${initials(c.name)}</div>
+            <div class="ov-c-name">${c.name}</div>
+          </div>
+          <div class="ov-c-total">${fmt(t)}</div>
+          <div class="ov-c-change ${cc.cls}">${cc.txt}</div>
+          <div class="ov-pf-pills">
+            ${ttC?`<div class="ov-pill pill-tt">TT ${fmtK(ttC)}</div>`:''}
+            ${igC?`<div class="ov-pill pill-ig">IG ${fmtK(igC)}</div>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="sec-title">全社フォロワー推移（月別合計）</div>
+      </div>
+      <canvas id="myChart" height="160"></canvas>
+    </div>
+  `;
+  renderOverviewChart();
+}
+
+function renderOverviewChart(){
+  if(chartInst){chartInst.destroy();chartInst=null;}
+  const ctx=document.getElementById('myChart');
+  if(!ctx)return;
+  const totalByMonth = MONTH_LABELS.map((_,mi)=>
+    clients.flatMap(c=>c.accounts).reduce((s,a)=>s+(a.history[mi]||0),0)
+  );
+  chartInst = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:MONTH_LABELS,
+      datasets:[{
+        label:'全社合計',
+        data:totalByMonth,
+        backgroundColor:'rgba(29,78,216,.15)',
+        borderColor:'#1D4ED8',
+        borderWidth:1.5,
+        borderRadius:4,
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:true,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.parsed.y.toLocaleString('ja-JP')+'人'}}},
+      scales:{
+        x:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{color:'#9E9C96',font:{size:11}}},
+        y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{color:'#9E9C96',font:{size:11},callback:v=>v>=10000?Math.round(v/1000)+'K':v}}
+      }
+    }
+  });
+}
+
+/* ─── Client detail ─── */
+function renderClient(c){
+  if(!c){document.getElementById('scroll-area').innerHTML='<div class="empty"><div class="empty-icon">?</div><p>クライアントが見つかりません</p></div>';return;}
+  const total=c.accounts.reduce((s,a)=>s+(a.followers||0),0);
+  const prev=c.accounts.reduce((s,a)=>s+(a.prev||0),0);
+  const totalCh=ch(total,prev);
+  const growth=prev>0?((total-prev)/prev*100).toFixed(2):null;
+  const ttTotal=c.accounts.filter(a=>a.platform==='tiktok').reduce((s,a)=>s+(a.followers||0),0);
+  const igTotal=c.accounts.filter(a=>a.platform==='instagram').reduce((s,a)=>s+(a.followers||0),0);
+
+  document.getElementById('scroll-area').innerHTML = `
+    ${apiPanelHtml()}
+
+    <div class="metric-row">
+      <div class="metric-card">
+        <div class="m-label">総フォロワー</div>
+        <div class="m-val">${fmt(total)}</div>
+        <div class="m-sub ${totalCh.cls}">${totalCh.txt} 前月比</div>
+      </div>
+      <div class="metric-card">
+        <div class="m-label">成長率</div>
+        <div class="m-val">${growth!=null?growth+'%':'—'}</div>
+        <div class="m-sub neu">前月比</div>
+      </div>
+      <div class="metric-card">
+        <div class="m-label">TikTok</div>
+        <div class="m-val">${fmt(ttTotal)||'—'}</div>
+        <div class="m-sub neu">${c.accounts.filter(a=>a.platform==='tiktok').length}アカウント</div>
+      </div>
+      <div class="metric-card">
+        <div class="m-label">Instagram</div>
+        <div class="m-val">${fmt(igTotal)||'—'}</div>
+        <div class="m-sub neu">${c.accounts.filter(a=>a.platform==='instagram').length}アカウント</div>
+      </div>
+    </div>
+
+    <div class="sec-head"><div class="sec-title">アカウント</div></div>
+    <div class="acc-grid">
+      ${c.accounts.map(a=>{
+        const r=ch(a.followers,a.prev);
+        return `<div class="acc-card">
+          <button class="btn-del" onclick="deleteAccount(${c.id},${a.id})" title="削除">✕</button>
+          <div class="pf-row">${pfIcon(a.platform)}<div><div class="pf-n">${a.platform==='tiktok'?'TikTok':'Instagram'}</div><div class="pf-h pf-h-edit" onclick="startHandleRename(${c.id},${a.id},this)" title="クリックして編集">${a.handle}</div></div></div>
+          <div class="acc-num">${fmt(a.followers)}</div>
+          <div class="acc-ch ${r.cls}">${r.txt}</div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="sec-title">月別フォロワー推移（直近6ヶ月）</div>
+        <div class="legend" id="chart-legend"></div>
+      </div>
+      <canvas id="myChart" height="180"></canvas>
+    </div>
+
+    <div class="input-card">
+      <div class="sec-head" style="margin-bottom:10px;">
+        <div class="sec-title">フォロワー数を手動更新</div>
+      </div>
+      <div class="inp-grid">
+        ${c.accounts.map(a=>`
+          <div class="inp-group">
+            <label>${pfIcon(a.platform)} ${a.handle}</label>
+            <input type="number" id="inp-${a.id}" value="${a.followers!=null?a.followers:''}" placeholder="人数" min="0" />
+          </div>`).join('')}
+      </div>
+      <div class="action-row">
+        <button class="btn-primary" onclick="updateFollowers(${c.id})">更新する</button>
+        <div class="api-hint">APIキー設定後は自動更新に切り替え可</div>
+      </div>
+      <div class="add-acc-row">
+        <select id="new-pf"><option value="tiktok">TikTok</option><option value="instagram">Instagram</option></select>
+        <input type="text" id="new-handle" placeholder="@アカウント名" />
+        <button class="btn-sm" onclick="addAccount(${c.id})">+ 追加</button>
+      </div>
+    </div>
+  `;
+
+  renderClientChart(c);
+}
+
+function renderClientChart(c){
+  if(chartInst){chartInst.destroy();chartInst=null;}
+  const ctx=document.getElementById('myChart');
+  if(!ctx)return;
+  const legend=document.getElementById('chart-legend');
+  if(legend) legend.innerHTML=c.accounts.map((a,i)=>
+    `<div class="leg-item"><div class="leg-dot" style="background:${CHART_COLORS[i%CHART_COLORS.length]}"></div>${a.handle}</div>`
+  ).join('');
+  chartInst=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:MONTH_LABELS,
+      datasets:c.accounts.map((a,i)=>({
+        label:a.handle,
+        data:a.history,
+        borderColor:CHART_COLORS[i%CHART_COLORS.length],
+        backgroundColor:'transparent',
+        borderWidth:2,
+        pointRadius:4,
+        pointBackgroundColor:'#fff',
+        pointBorderColor:CHART_COLORS[i%CHART_COLORS.length],
+        pointBorderWidth:2,
+        tension:.4,
+      }))
+    },
+    options:{
+      responsive:true,maintainAspectRatio:true,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y.toLocaleString('ja-JP')}人`}}
+      },
+      scales:{
+        x:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{color:'#9E9C96',font:{size:11}}},
+        y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{color:'#9E9C96',font:{size:11},callback:v=>v>=10000?Math.round(v/1000)+'K':v.toLocaleString('ja-JP')}}
+      }
+    }
+  });
+}
+
+/* ─── Actions ─── */
+function updateFollowers(cid){
+  const c=clients.find(cl=>cl.id===cid);
+  c.accounts.forEach(a=>{
+    const el=document.getElementById('inp-'+a.id);
+    if(el&&el.value!==''){
+      const v=parseInt(el.value,10);
+      if(!isNaN(v)){a.prev=a.followers;a.followers=v;a.history=[...a.history.slice(1),v];}
+    }
+  });
+  const now=new Date();
+  document.getElementById('updated-at').textContent=
+    now.toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})+' 更新';
+  renderSidebar();
+  renderMain();
+}
+
+function addAccount(cid){
+  const c=clients.find(cl=>cl.id===cid);
+  const pf=document.getElementById('new-pf').value;
+  const h=document.getElementById('new-handle').value.trim();
+  if(!h)return;
+  const handle=h.startsWith('@')?h:'@'+h;
+  c.accounts.push({id:nextAId++,platform:pf,handle,followers:null,prev:null,history:Array(6).fill(null)});
+  document.getElementById('new-handle').value='';
+  renderSidebar();renderMain();
+}
+
+function addClient(){
+  const inp=document.getElementById('new-client-name');
+  const name=inp.value.trim();
+  if(!name)return;
+  clients.push({id:nextCId++,name,accounts:[]});
+  view=clients[clients.length-1].id;
+  inp.value='';
+  renderSidebar();renderMain();
+}
+
+function startRename(){
+  if(view==='overview') return;
+  const c = clients.find(cl=>cl.id===view);
+  if(!c) return;
+  const el = document.getElementById('page-title');
+  const w = Math.max(el.offsetWidth, 80);
+  el.outerHTML = `<input class="rename-input" id="rename-input" value="${c.name}" style="width:${w}px" /><span class="rename-hint">Enter で確定</span>`;
+  const inp = document.getElementById('rename-input');
+  inp.focus();
+  inp.select();
+  inp.addEventListener('keydown', e=>{
+    if(e.key==='Enter'){ e.preventDefault(); commitRename(inp.value.trim()); }
+    if(e.key==='Escape') renderMain();
+  });
+  inp.addEventListener('blur', ()=>{ setTimeout(()=>commitRename(inp.value.trim()), 120); });
+  inp.addEventListener('input', ()=>{ inp.style.width = Math.max(inp.value.length * 9 + 24, 80)+'px'; });
+}
+
+function commitRename(name){
+  if(!name) { renderMain(); return; }
+  const c = clients.find(cl=>cl.id===view);
+  if(c) c.name = name;
+  renderSidebar();
+  renderMain();
+}
+
+
+function startHandleRename(cid, aid, el){
+  const c = clients.find(cl=>cl.id===cid);
+  const a = c && c.accounts.find(ac=>ac.id===aid);
+  if(!a) return;
+  const inp = document.createElement('input');
+  inp.className = 'handle-input';
+  inp.value = a.handle;
+  inp.style.width = Math.max(a.handle.length * 7 + 16, 80) + 'px';
+  el.replaceWith(inp);
+  inp.focus(); inp.select();
+  const commit = ()=>{ commitHandleRename(cid, aid, inp.value.trim()); };
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){e.preventDefault();commit();} if(e.key==='Escape'){renderMain();} });
+  inp.addEventListener('blur', ()=>setTimeout(commit, 100));
+  inp.addEventListener('input', ()=>{ inp.style.width = Math.max(inp.value.length * 7 + 16, 80)+'px'; });
+}
+
+function commitHandleRename(cid, aid, val){
+  if(!val) { renderMain(); return; }
+  const c = clients.find(cl=>cl.id===cid);
+  const a = c && c.accounts.find(ac=>ac.id===aid);
+  if(a) a.handle = val.startsWith('@') ? val : '@'+val;
+  renderSidebar(); renderMain();
+}
+
+function deleteAccount(cid,aid){
+  const c=clients.find(cl=>cl.id===cid);
+  if(!c)return;
+  const a=c.accounts.find(ac=>ac.id===aid);
+  if(!a)return;
+  if(!confirm(`「${a.handle}」を削除しますか？`))return;
+  c.accounts=c.accounts.filter(ac=>ac.id!==aid);
+  renderSidebar();renderMain();
+}
+
+/* ─── Init ─── */
+renderSidebar();
+renderMain();
+</script>
+</body>
+</html>
